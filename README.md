@@ -34,7 +34,7 @@ Before you begin, ensure you have the following installed:
 
 1.  **Clone the repository** (if you haven't already):
     ```bash
-    git clone <your-repository-url>
+    git clone https://github.com/tugiabao/Azuratech_Store.git
     cd playwright_demo
     ```
 2.  **Install dependencies**:
