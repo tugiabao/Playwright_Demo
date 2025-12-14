@@ -1,0 +1,25 @@
+{
+  "name": "playwright-automation-ts",
+  "version": "1.0.0",
+  "scripts": {
+    "test": "playwright test modules/tests",
+    "scrape": "ts-node modules/scripts/scrape-products.ts",
+    "auto": "ts-node modules/scripts/create-user-and-login.ts",
+    "dashboard": "ts-node dashboard/server.ts"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@types/express": "^5.0.6",
+    "@types/node": "^20.10.0",
+    "@types/socket.io": "^3.0.2",
+    "playwright": "^1.40.0",
+    "ts-node": "^10.9.1",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "express": "^5.2.1",
+    "open": "^11.0.0",
+    "socket.io": "^4.8.1",
+    "strip-ansi": "^7.1.2"
+  }
+}

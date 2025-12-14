@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Playwright Automation Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #2563eb;
+            --success: #16a34a;
+            --text-main: #1f2937;
+            --terminal-bg: #1e1e1e;
+            --terminal-text: #00ff00;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        h1 { text-align: center; margin-bottom: 20px; color: #333; }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar / Controls */
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s;
+            cursor: pointer;
+            border: 2px solid transparent;
+        }
+        .card:hover { transform: translateY(-2px); border-color: var(--primary); }
+        .card.active { border-color: var(--primary); background-color: #eff6ff; }
+        .card h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
+        .card p { margin: 0; color: #666; font-size: 0.9rem; }
+        .status-dot {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ddd;
+            margin-right: 8px;
+        }
+        .running .status-dot { background-color: #eab308; box-shadow: 0 0 5px #eab308; }
+        .completed .status-dot { background-color: #16a34a; }
+        .error .status-dot { background-color: #dc2626; }
+
+        /* Main Content Area */
+        .main-content {
+            display: flex;
+            flex-direction: row; /* Changed from column to row */
+            gap: 20px;
+            flex: 1; /* Allow to fill available space */
+            overflow: hidden;
+        }
+
+        /* Terminal */
+        .terminal {
+            background: var(--terminal-bg);
+            color: var(--terminal-text);
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.9rem;
+            flex: 1; /* Take up remaining space */
+            overflow-y: auto;
+            white-space: pre-wrap;
+            border: 1px solid #333;
+            min-height: 200px; /* Keep minimum height */
+            min-width: 300px; /* Ensure terminal has a minimum width */
+        }
+
+        /* Result View */
+        .result-view {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            flex: 1; /* Take up remaining space */
+            overflow: auto;
+            display: none; /* Hidden by default */
+            min-width: 300px; /* Ensure result view has a minimum width */
+        }
+        .result-view.active { 
+            display: block; 
+        }
+
+        img.preview { max-width: 100%; border-radius: 8px; border: 1px solid #ddd; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 0.9rem; }
+        th { background-color: #f8fafc; }
+
+        .btn-link {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        .btn-link:hover { background-color: #1d4ed8; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Playwright Dashboard</h1>
+
+    <div class="container">
+        <!-- Controls -->
+        <div class="controls">
+            <div class="card" onclick="runModule('scrape')" id="card-scrape">
+                <h3><span class="status-dot"></span>Scrape Products</h3>
+                <p>Crawl data from product page to JSON.</p>
+            </div>
+            
+            <div class="card" onclick="runModule('auto')" id="card-auto">
+                <h3><span class="status-dot"></span>Auto Login & Create</h3>
+                <p>Create user, login and verify.</p>
+            </div>
+
+            <div class="card" onclick="runModule('test')" id="card-test">
+                <h3><span class="status-dot"></span>E2E Tests</h3>
+                <p>Run Playwright E2E tests and report.</p>
+            </div>
+        </div>
+
+        <!-- Right Side -->
+        <div class="main-content">
+            <!-- Terminal -->
+            <div class="terminal" id="terminal">Waiting for commands...</div>
+
+            <!-- Result Areas -->
+            <div id="result-area" class="result-view">
+                <h2 id="result-title">Result</h2>
+                <div id="result-content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        const terminal = document.getElementById('terminal');
+        const resultContent = document.getElementById('result-content');
+        const resultArea = document.getElementById('result-area');
+        const resultTitle = document.getElementById('result-title');
+
+        // Socket Events
+        socket.on('log', (msg) => {
+            terminal.innerHTML += msg.replace(/\n/g, '<br/>');
+            terminal.scrollTop = terminal.scrollHeight; // Auto scroll
+        });
+
+
+        socket.on('status', ({ module, status }) => {
+            const card = document.getElementById(`card-${module}`);
+            card.classList.remove('running', 'completed', 'error');
+            card.classList.add(status);
+        });
+
+        // Handle Scrape Results
+        socket.on('result-scrape', (data) => {
+            showResult('Scraped Products', buildTable(data));
+        });
+
+        // Handle Auto Login Results
+        socket.on('result-auto', (imgUrl) => {
+            // Add a timestamp to bust cache
+            const url = `${imgUrl}?t=${Date.now()}`;
+            showResult('Automation Screenshot', `<img src="${url}" class="preview" />`);
+        });
+
+        // Handle Test Results
+        socket.on('result-test', (reportUrl) => {
+            showResult('Test Report Ready', `
+                <p>Test run completed. View the full HTML report below:</p>
+                <a href="${reportUrl}" target="_blank" class="btn-link">Open HTML Report</a>
+            `);
+        });
+
+        function runModule(name) {
+            // Reset UI
+            terminal.innerHTML = `> Requesting to run module: ${name}...<br/>`;
+            document.querySelectorAll('.card').forEach(c => c.classList.remove('active'));
+            document.getElementById(`card-${name}`).classList.add('active');
+            resultArea.classList.remove('active');
+
+            // Emit event
+            socket.emit('run-module', name);
+        }
+
+        function showResult(title, html) {
+            resultTitle.textContent = title;
+            resultContent.innerHTML = html;
+            resultArea.classList.add('active');
+        }
+
+        function buildTable(items) {
+            if (!items || items.length === 0) return '<p>No data found.</p>';
+            let rows = items.map(item => `
+                <tr>
+                    <td><img src="${item.image}" width="50"></td>
+                    <td>${item.title}</td>
+                    <td>${item.price}</td>
+                </tr>
+            `).join('');
+            
+            return `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Image</th>
+                            <th>Title</th>
+                            <th>Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+
+    </script>
+</body>
+</html>

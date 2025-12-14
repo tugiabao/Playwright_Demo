@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "target": "ES2016",
+    "module": "commonjs",
+    "lib": ["es2016", "dom"],
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "outDir": "./dist"
+  },
+  "include": ["modules/tests/**/*", "modules/scripts/**/*", "playwright.config.ts"]
+}
